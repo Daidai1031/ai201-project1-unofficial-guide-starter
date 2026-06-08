@@ -9,10 +9,15 @@
 
 ## Domain
 
-<!-- What topic or category of knowledge does your system cover?
-     Why is this knowledge valuable, and why is it hard to find through official channels?
-     Example: "Student reviews of CS professors at [university] — useful because official
-     course descriptions don't reflect teaching style, exam difficulty, or workload." -->
+### Cornell Tech Studio Guide
+
+This project focuses on helping Cornell Tech students understand the Studio curriculum and choose between Product Studio, Startup Studio, BigCo Studio, and PiTech Impact Studio.
+
+While Cornell Tech provides official course descriptions, students often struggle to understand what the Studio experience is actually like, how teams are formed, what types of projects students work on, how Startup Awards operate, and what partner companies or organizations expect from student teams.
+
+Information about Studio is scattered across multiple sources, including official course pages, news, GitHub, Slack, blog posts, Reddit, and student reflections. Students often need to piece together information from many places to understand which Studio track best matches their interests and career goals.
+
+The goal of this project is to create a searchable unofficial guide that consolidates these sources into a single retrieval system.
 
 ---
 
@@ -22,18 +27,34 @@
      Be specific: include URLs, subreddit names, forum thread titles, or file names.
      Aim for variety — sources that together cover different subtopics or perspectives. -->
 
-| # | Source | Type | URL or file path |
-|---|--------|------|-----------------|
-| 1 | | | |
-| 2 | | | |
-| 3 | | | |
-| 4 | | | |
-| 5 | | | |
-| 6 | | | |
-| 7 | | | |
-| 8 | | | |
-| 9 | | | |
-| 10 | | | |
+## Document Sources
+
+| # | Source | Type | URL | File path |
+|---|--------|------|-----|-----------|
+| 1 | Product Studio | Official Website | https://tech.cornell.edu/studio/curriculum/product-studio/ | documents/official_product_studio.md |
+| 2 | Startup Studio | Official Website | https://tech.cornell.edu/studio/curriculum/startup-studio/ | documents/official_startup_studio.md |
+| 3 | BigCo Studio | Official Website | https://tech.cornell.edu/studio/curriculum/bigco-studio/ | documents/official_bigco_studio.md |
+| 4 | PiTech Impact Studio | Official Website | https://tech.cornell.edu/studio/curriculum/pitech-impact-studio/ | documents/official_pitech_impact_studio.md |
+| 5 | Studio Curriculum Overview | Official Website | https://tech.cornell.edu/studio/curriculum/ | documents/official_studio_curriculum_overview.md |
+| 6 | Josh Hartmann Studio Interview | Official Website | https://tech.cornell.edu/news/studio-cornell-tech-josh-hartmann/ | documents/official_studio_josh_hartmann_interview.md |
+| 7 | Startup Awards 2025 | Official Website | https://tech.cornell.edu/news/cornell-tech-startup-awards-2025/ | documents/official_startup_awards_2025.md |
+| 8 | Startup Awards 2026 | Official Website | https://tech.cornell.edu/news/2026-startup-awards-cornell-tech/ | documents/official_startup_awards_2026.md |
+| 9 | Product Studio Repository | GitHub | https://github.com/cornelltech/product-studio | documents/github_product_studio_2019.md |
+| 10 | Startup Studio Repository | GitHub | https://github.com/cornelltech/startup-studio | documents/github_startup_studio_2019.md |
+| 11 | Startup Studio Student Reflection | Medium | https://medium.com/%40hweelin.yeo/why-i-am-working-on-a-consumer-startup-at-cornell-tech-this-semester-ebdf49058969 | documents/medium_startup_studio_reflection_2020.md |
+| 12 | Studio Program Constructive Criticism | Medium | https://medium.com/@yr49/6-reasons-why-the-studio-program-at-cornell-tech-succeeded-in-deserving-some-constructive-criticism-17cbbafaf57e | documents/medium_studio_constructive_criticism_2020.md |
+| 13 | BigCo Studio Blog Post | Blog | https://blog.chaddickerson.com/2018/10/18/bigco-studio/ | documents/blog_bigco_studio_chad_dickerson_2018.md |
+| 14 | Studio Teams Discussion | Reddit | https://www.reddit.com/r/cornelltech_/comments/1kfjryo/studio_teams/ | documents/reddit_studio_teams.md |
+| 15 | Product Studio Pre-Work and Teaming | Slack | #product-studio-fall2023 | documents/slack_product_studio_prework_and_teaming.md |
+| 16 | Startup Studio Team Formation | Slack | #startup-studio-spring2024 | documents/slack_startup_team_formation.md |
+| 17 | Startup Studio Semester Activities | Slack | #startup-studio-spring2024 | documents/slack_startup_studio_semester_activities.md |
+| 18 | BigCo Studio Matching Announcement | Slack | #bigco26 / #bigco26-teaming | documents/slack_bigco_studio.md |
+| 19 | PiTech Partner Matching | Slack | #pitech-impact-sp26 | documents/slack_pitech_partner_matching.md |
+| 20 | Google BigCo Partner Description | Airtable | [BigCo Studio 2026 Airtable record - Google](https://airtable.com/app9AQmQ8pSOcMc1Q/shrSgECZo21JkiP4b?sbe0w=recXmQIkacxIsCk1k) | documents/airtable_bigco_google_2026.md |
+| 21 | IHG Hotels BigCo Partner Description | Airtable | [BigCo Studio 2026 Airtable record - IHG Hotels and Resorts](https://airtable.com/app9AQmQ8pSOcMc1Q/shrSgECZo21JkiP4b?sbe0w=rec0AF2RjvGB43JTE) | documents/airtable_bigco_ihg_hotels_2026.md |
+| 22 | JPMorgan Chase BigCo Partner Description | Airtable | [BigCo Studio 2026 Airtable record - JPMorgan Chase](https://airtable.com/app9AQmQ8pSOcMc1Q/shrSgECZo21JkiP4b?sbe0w=recpjEpT6vaDzRNmf) | documents/airtable_bigco_jpmorgan_chase_2026.md |
+
+
 
 ---
 
