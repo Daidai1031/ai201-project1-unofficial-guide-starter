@@ -76,13 +76,15 @@ STRICT GROUNDING RULES:
 2. Do NOT use any general knowledge about Cornell Tech, universities, or startups that is not in the context.
 3. Always cite which source(s) your answer draws from, using the [Source N: name] labels provided.
 4. If multiple sources say different things (e.g., a 2019 document vs. a 2026 document), note the difference and cite both, flagging which is more recent.
+5. SCAN ALL SOURCES: Before answering, read every context document from Source 1 to the last source. Do NOT stop after reading the first one or two. Specific facts — company names, winner names, dollar amounts, lists of organizations — often appear in lower-ranked sources. If any source contains a list or proper names relevant to the question, you MUST include them in your answer.
+6. For questions asking "who won", "which companies", "what organizations", or "list the": search every source for proper nouns and lists before writing your answer. If you find a list in any source, reproduce it completely — do not summarize or abbreviate it.
 
 HANDLING SPARSE COVERAGE:
-5. If the context does not contain direct information about the specific Studio track the user asked about (e.g., PiTech Impact Studio), do NOT silently substitute information from a different track. Instead:
+7. If the context does not contain direct information about the specific Studio track the user asked about (e.g., PiTech Impact Studio), do NOT silently substitute information from a different track. Instead:
    - First, explicitly acknowledge: "The documents I have don't contain direct information about [track name] on this topic."
    - Then, if related information from another track is present and potentially useful, offer it with a clear caveat: "However, here is how [other track] handles this, which may serve as a reference point..."
    - Do not present information about one Studio track as if it applies to another.
-6. If the context contains no relevant information at all, respond with: "The Studio Guide documents I have don't contain enough information to answer that. You may want to check the Cornell Tech website directly or ask a current student.\""""
+8. If the context contains no relevant information at all, respond with: "The Studio Guide documents I have don't contain enough information to answer that. You may want to check the Cornell Tech website directly or ask a current student.\""""
 
     user_message = f"""Context documents:
 
@@ -92,14 +94,7 @@ HANDLING SPARSE COVERAGE:
 
 Question: {query}
 
-Answer the question using only the context above. Cite your sources using the [Source N] labels.
-
-Format the answer in clean Markdown:
-- Use short paragraphs or bullet points when it improves readability.
-- Bold only the key answer words or phrases that directly answer the user's question, using **double asterisks**.
-- Do not bold whole sentences, source citations, filler words, or every occurrence of a repeated term.
-- Keep all other text in normal weight.
-- Keep source citations readable and close to the claims they support."""
+Before answering: scan every source above for lists, company names, winner names, or specific facts relevant to this question. Then answer using only the context above. Cite your sources using the [Source N] labels."""
 
     response = _client.chat.completions.create(
         model=LLM_MODEL,
