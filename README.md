@@ -54,39 +54,22 @@ The goal of this project is to create a searchable unofficial guide that consoli
 ---
 
 ## Chunking Strategy
-
-<!-- Describe your chunking approach with enough specificity that someone else could reproduce it.
-     Include:
-     - Chunk size (characters or tokens) and why that size fits your documents
-     - Overlap size and why (or why not) you used overlap
-     - Any preprocessing you did before chunking (e.g., stripping HTML, removing headers)
-     - What your final chunk count was across all documents -->
-
-**Chunk size:** 500 characters
-
+ 
+**Chunk size:** 375 characters (600 characters for Startup Awards documents)
+ 
 **Overlap:** 75 characters
-
+ 
 **Why these choices fit your documents:**
-
-The Studio Guide documents are a heterogeneous mix: some are structured prose paragraphs (official course pages, news articles), some are bullet-point lists (Slack, GitHub), and some are narrative student reflections (Medium posts, Reddit comments). After skimming all 22 documents, the key facts tend to appear in 2–4 sentence clusters.
  
-500 characters fits roughly 2–4 sentences or a short bullet list, which is long enough to carry a complete idea without merging two unrelated topics into the same chunk. 
-
-75 characters is roughly one short sentence, which is enough to recover context without significantly duplicating content across the database.
-
-**Final chunk count:** 
-
-**Chunk size:** 375 characters
+The Studio Guide documents are a heterogeneous mix: structured prose paragraphs (official course pages, news articles), bullet-point lists (Slack announcements, GitHub FAQs), and narrative student reflections (Medium posts, Reddit comments). After skimming all 22 documents, key facts tend to appear in 1–3 sentence clusters.
  
-**Overlap:** 75 characters
-
-**Reasoning:**
-
-When I tested ingest with `tests/test_ingest.py`, I notice that some of the output chunks are included with multi-topics, which means will be too diluted to match any specific query. At same time, the totol chunks is only 209, which is too small for 22 documents. So I changed chunk count to 375，the final totol chunkss is 293.
-
-375 characters fits roughly 1–3 sentences or a short bullet list, which is long enough to carry a complete idea without merging two unrelated topics into the same chunk. A smaller size like 200 characters would fragment multi-sentence explanations; a larger size like 500 characters frequently merges unrelated paragraphs and causes chunk boundaries to fall mid-sentence, producing fragments at chunk openings that reduce retrieval precision.
+375 characters fits roughly 1–3 sentences or a short bullet list — long enough to carry a complete idea without merging two unrelated topics. An initial test with 500 characters produced only 209 chunks across 22 documents and caused frequent mid-sentence breaks at chunk boundaries. Reducing to 375 raised the total to 293 chunks with cleaner boundaries.
  
-I keep 75 characters of overlap (20% of chunk size), ensuring that a key fact landing exactly on a chunk boundary still appears in full in at least one chunk. A smaller overlap of 50 characters risks cutting mid-sentence on boundary-spanning facts; a larger overlap of 100+ characters causes adjacent chunks to be too semantically similar, which degrades retrieval by returning near-duplicate results.
+The Startup Awards documents use a larger chunk size of 600 characters because each winner entry (name, description, founders) spans approximately 400–500 characters. At 375 characters, winner names were split across 2–3 fragments, each too short for retrieval to match "who won the awards" queries. Per-document chunk size logic in `chunk_document()` handles this automatically.
+ 
+75 characters of overlap (20% of chunk size) ensures that a key fact landing exactly on a chunk boundary still appears in full in at least one chunk. A smaller overlap of 50 characters risks cutting mid-sentence; overlap above 100 characters causes adjacent chunks to be too semantically similar, degrading retrieval by returning near-duplicate results.
+ 
+**Final chunk count:** 273 chunks across 22 documents
 
 ---
 
@@ -102,21 +85,39 @@ I keep 75 characters of overlap (20% of chunk size), ensuring that a key fact la
 
 **Production tradeoff reflection:**
 
+**Production tradeoff reflection:**
+ 
+For a real deployment serving Cornell Tech students at scale, I would weigh several tradeoffs:
+ 
+- **Context length:** `all-MiniLM-L6-v2` truncates input at 256 tokens (~200 words). Several Studio documents — especially the Startup Awards articles and Slack digests — contain passages longer than this. A model with a higher context limit, such as OpenAI's `text-embedding-3-large` (8,191 tokens), would embed those documents more faithfully without truncation.
+- **Accuracy on domain-specific text:** The Studio corpus contains proper nouns (Dreamteam, Maker Day, Startup Awards, PiTech) that a general-purpose model like MiniLM may not represent as precisely as a fine-tuned academic or enterprise model. A domain-adapted model would likely improve retrieval on track-specific queries.
+- **Latency and cost:** `all-MiniLM-L6-v2` runs locally with zero network latency. An API-hosted model like `text-embedding-3-large` would add 50–200ms per query and incur per-token costs — acceptable for low-traffic internal tools, significant at scale.
+- **Multilingual support:** Not a concern for this English-only corpus, but relevant if the system were extended to serve international students writing queries in other languages.
+  
 ---
 
 ## Grounded Generation
-
-<!-- Explain how your system enforces grounding — how does it prevent the LLM from answering
-     beyond the retrieved documents?
-     Describe both your system prompt (what instruction you gave the model) and any structural
-     choices (e.g., how you formatted the context, whether you filtered low-relevance chunks).
-     Do not just say "I told it to use the documents" — show the actual instruction or explain
-     the mechanism. -->
-
+ 
 **System prompt grounding instruction:**
-
+ 
+Grounding is enforced through a six-rule system prompt passed to `llama-3.3-70b-versatile` via Groq. The critical rules are:
+ 
+> "Answer ONLY using information explicitly stated in the provided context documents. Do NOT use any general knowledge about Cornell Tech, universities, or startups that is not in the context."
+ 
+> "If the context contains no relevant information at all, respond with: 'The Studio Guide documents I have don't contain enough information to answer that. You may want to check the Cornell Tech website directly or ask a current student.'"
+ 
+> "If the context does not contain direct information about the specific Studio track the user asked about, do NOT silently substitute information from a different track. First explicitly acknowledge the gap, then offer related information from another track only with a clear caveat."
+ 
+The system prompt also instructs the model to cite sources using `[Source N: name (year)]` labels injected into each chunk's context block, and to flag temporal conflicts when a 2019 document and a 2026 document say different things.
+ 
+In addition, chunks with cosine distance above 0.6 are filtered out before the context block is built, preventing weak matches from misleading the model.
+ 
 **How source attribution is surfaced in the response:**
-
+ 
+Source attribution operates at two levels. First, the LLM cites `[Source N]` labels inline in its answer. Second, `generate_response()` builds a deduplicated sources list programmatically from chunk metadata — independent of what the LLM writes — and returns it as a separate `sources` field. The Gradio UI displays this list in a "Retrieved from" panel below the answer, with clickable hyperlinks for documents that have public URLs (Cornell Tech pages, GitHub, Medium, Reddit, the Chad Dickerson blog). Slack and Airtable sources, which have no public URL, appear as plain text citations.
+ 
+This two-level approach guarantees attribution even if the model fails to cite sources inline, and ensures the sources panel reflects what was actually retrieved rather than what the LLM hallucinated.
+ 
 ---
 
 ## Evaluation Report
@@ -129,41 +130,26 @@ I keep 75 characters of overlap (20% of chunk size), ensuring that a key fact la
  
 | # | Question | Expected answer | System response (summarized) | Retrieval quality | Response accuracy |
 |---|----------|-----------------|------------------------------|-------------------|-------------------|
-| 1 | What are the team size requirements for Startup Studio? | 4 students from at least 2 degree programs, or 5 students from at least 3 degree programs. A 3-person exception requires explicit approval from Josh Hartmann. | | | |
-| 2 | What BigCo companies are partnering with Cornell Tech in 2026? | Seven companies: Catholic Health, CSL Behring, Google, IHG Hotels, JPMorgan Chase, Samsung, and TikTok. Source is a 2026 Slack announcement from the BigCo Studio teaming channel. | | | |
-| 3 | Who won the 2026 Cornell Tech Startup Awards and how much funding did they receive? | Four teams each received $100,000: Aiseptor (AI exam fraud prevention), Custos (programmable AI payment policies), Kindred (medical device regulation AI), and Lola (institutional knowledge automation). Two runner-ups — CoagHealth and MedComm — received office space and mentorship through Runway but no cash investment. | | | |
-| 4 | I want to start my own company after graduation. Which Studio track should I choose and why? | Startup Studio is the primary track for aspiring founders: students develop their own product idea, pitch to investors, and can apply for a $100,000 Startup Award plus one year of free co-working space. PiTech Impact Studio is an alternative if the startup focuses on public interest or underserved communities. BigCo Studio is designed for innovating within large organizations, not for founding an independent company. | | | |
-| 5 | What do students say are the weaknesses of the Studio program? | A 2020 Medium post by a Cornell Tech student cited six criticisms: faculty lacking passion for teaching, insufficient teaching experience among Studio team members, nepotism in faculty hiring (many worked together previously), repetitive guest speakers, unclear and subjective grading standards, and a general lack of accountability in the program. | | | |
-| 6 | What is the weekly class schedule and structure of PiTech Impact Studio? | The loaded documents do not contain a detailed weekly schedule for PiTech Impact Studio. What is available: the course runs in spring semester for 3 credits, taught by Matthew Klein and Ariel Kennan, and involves weekly lectures, fireside chats, and Crit/Maker Days. The system should acknowledge the gap and not fabricate a schedule. | | | |
+| 1 | What are the team size requirements for Startup Studio? | 4 students/2 programs or 5 students/3 programs; 3-person exception requires Josh's approval. | Correctly stated both size options and the exception rule, cited Slack Startup Team Formation 2026. | Relevant | Accurate |
+| 2 | What BigCo companies are partnering with Cornell Tech in 2026? | Seven companies: Catholic Health, CSL Behring, Google, IHG Hotels, JPMorgan Chase, Samsung, TikTok. | Failed to list the 7 companies despite Slack BigCo Studio chunk (dist: 0.41) containing the full list. LLM noted only that "Google and JPMorgan Chase are mentioned as examples." Directed user to Cornell Tech website. | Partially relevant | Inaccurate |
+| 3 | Who won the 2026 Cornell Tech Startup Awards and how much funding did they receive? | Aiseptor, Custos, Kindred, Lola ($100K each); CoagHealth and MedComm as runner-ups (Runway). | Correctly stated $100K per team and described four AI project categories, but named no winning companies. Listed finalist teams instead (Daunt, Ephemeris, NYX Labs). | Relevant | Partially accurate |
+| 4 | I want to start my own company after graduation. Which Studio track should I choose and why? | Startup Studio (primary); PiTech for public interest; BigCo Studio not for independent founding. | Recommended Startup Studio with Startup Award details, contrasted with BigCo Studio. Did not mention PiTech as an alternative — not in top-5 retrieved chunks. | Partially relevant | Partially accurate |
+| 5 | What do students say are the weaknesses of the Studio program? | Six criticisms from 2020 Medium post: passion, experience, nepotism, guest speakers, grading, accountability. | Covered faculty passion, grading standards, and nepotism correctly. Source 3 (Chad Dickerson blog, positive content) was retrieved and cited despite being irrelevant to weaknesses. | Partially relevant | Partially accurate |
+| 6 | What is the weekly class schedule and structure of PiTech Impact Studio? | Documents don't contain a weekly schedule; system should acknowledge gap without fabricating. | Correctly acknowledged no direct PiTech schedule information. Offered Startup Studio 2019 schedule as reference with explicit caveat. Did not fabricate PiTech-specific content. | Off-target (by design) | Accurate (correct refusal) |
  
 
-**Retrieval quality:** Relevant / Partially relevant / Off-target  
-**Response accuracy:** Accurate / Partially accurate / Inaccurate
-
 ---
-
 ## Failure Case Analysis
-
-<!-- Identify at least one question where retrieval or generation did not work as expected.
-     Write a specific explanation of *why* it failed, tied to a part of the pipeline.
-
-     "The answer was wrong" is not an explanation.
-
-     "The relevant information was split across a chunk boundary, so retrieval returned
-     only half the context — the model didn't have enough to answer correctly" is an explanation.
-
-     "The embedding model treated the professor's nickname as out-of-vocabulary and returned
-     results from an unrelated review" is an explanation. -->
-
-**Failure Case 1 — Year disambiguation failure**
+ 
+**Failure Case 1 — Year disambiguation failure (fixed)**
  
 **Question that failed:** Who won the 2026 Cornell Tech Startup Awards?
  
-**What the system returned:** The top two retrieved chunks both came from the *2025* Startup Awards document (distances 0.316 and 0.324), ranking higher than the correct 2026 document (distance 0.361). The 2026 winners (Aiseptor, Custos, Kindred, Lola) appeared only in Result 3 and Result 5. A language model given this context could easily confuse the 2025 winners (CreditQuant AI, gymii.ai, Polyrook, SAIL) for the 2026 winners, since both sets of chunks appear in the retrieved set without clear ranking priority by year.
+**What the system returned (before fix):** The top two retrieved chunks both came from the 2025 Startup Awards document (distances 0.316 and 0.324), ranking higher than the correct 2026 document (distance 0.361). A language model given this context could easily confuse the 2025 winners (CreditQuant AI, gymii.ai, Polyrook, SAIL) for the 2026 winners (Aiseptor, Custos, Kindred, Lola).
  
-**Root cause (tied to a specific pipeline stage):** This is a retrieval-stage failure caused by the embedding model (`all-MiniLM-L6-v2`). The 2025 and 2026 Startup Awards articles have nearly identical sentence structure — both describe "four student teams," "$100,000 investments," "Startup Studio," and "Cornell Tech." The semantic vectors for these two documents are very similar, so cosine distance cannot distinguish between them based on the year token alone. The embedding model has no mechanism to weight a specific number ("2026") more heavily than the surrounding prose.
+**Root cause (tied to a specific pipeline stage):** Retrieval-stage failure caused by the embedding model (`all-MiniLM-L6-v2`). The 2025 and 2026 Startup Awards articles have nearly identical sentence structure — both describe "four student teams," "$100,000 investments," and "Startup Studio." The semantic vectors for the two documents are very similar, so cosine distance cannot distinguish them by year token alone.
  
-**What you would change to fix it:** Two options. First, metadata filtering: since `year` is stored as metadata on every chunk, a query explicitly mentioning a year (e.g. "2026") could trigger a `where={"year": "2026"}` filter in ChromaDB before semantic search runs, restricting results to 2026 documents only. Second, a reranking step: after retrieval, a cross-encoder reranker could re-score chunks by comparing the full query text against each chunk more precisely, down-ranking the 2025 chunks. The metadata filter approach is simpler and would directly solve this case.
+**Fix applied:** Added automatic year metadata filtering in `retrieve()`. When a query contains a 4-digit year (detected via regex), ChromaDB applies `where={"year": {"$eq": "2026"}}` before semantic ranking. After the fix, all 5 returned chunks came from the 2026 document.
  
 ---
  
@@ -171,58 +157,57 @@ I keep 75 characters of overlap (20% of chunk size), ensuring that a key fact la
  
 **Question that failed:** How does team formation work in Product Studio?
  
-**What the system returned:** Result 4 came from *Official Startup Studio 2026* (describing Startup Studio's self-organized teaming process), and Result 5 came from a 2020 Medium post criticizing faculty nepotism — unrelated to Product Studio team formation. Only 3 of 5 chunks directly addressed the question.
+**What the system returned:** Result 4 came from Official Startup Studio 2026 (describing Startup Studio's self-organized teaming), and Result 5 came from a 2020 Medium post criticizing faculty nepotism. Only 3 of 5 chunks directly addressed Product Studio team formation.
  
-**Root cause (tied to two pipeline stages):**
+**Root cause (tied to two pipeline stages):** First, a retrieval-stage failure: "team formation" is semantically broad and matches any Studio track. Second, a deeper infrastructure limitation: `retrieve()` was designed to apply `{"related_studio": {"$contains": "Product Studio"}}` when the query names a specific track. However, ChromaDB's `$contains` operator does not support string metadata fields. The Reddit Studio Teams document stores `related_studio` as `"Product Studio / Startup Studio / BigCo Studio"` (slash-separated, since ChromaDB metadata cannot store lists), so the filter returned 0 results and fell back to full-corpus search.
  
-First, a retrieval-stage failure: the query "team formation" is semantically broad and matches any Studio track that involves forming teams. The embedding model cannot infer that the user specifically wants Product Studio content.
+**What you would change to fix it:** Apply track filtering as a Python post-processing step — retrieve top-10 candidates, filter in Python using `any(track in chunk["related_studio"] for track in ["Product Studio"])`, then return the top-5. This sidesteps ChromaDB's API limitation entirely.
  
-Second, a deeper infrastructure limitation discovered during the fix attempt: the fix designed `retrieve()` to apply a `{"related_studio": {"$contains": "Product Studio"}}` filter in ChromaDB when the query names a specific track. This correctly handles single-value fields like `"Product Studio"`, but ChromaDB's `$contains` operator does not support string metadata fields — it only works on array types. One document (`Reddit Studio Teams`) stores `related_studio` as `"Product Studio / Startup Studio / BigCo Studio"` (a slash-separated string, since ChromaDB metadata cannot store lists). The filter returned 0 results and fell back to full-corpus search, leaving the cross-track contamination unfixed for this query.
- 
-**What you would change to fix it:** Two options. First, apply track filtering as a Python post-processing step after retrieval rather than inside ChromaDB — retrieve more candidates (e.g. top-10), then filter in Python using `any(track in chunk["related_studio"] for track in ["Product Studio"])`, then return the top-5 of the filtered set. This sidesteps ChromaDB's API limitation entirely. Second, at ingestion time, duplicate chunks from multi-track documents into separate records per track, so each chunk has a single-value `related_studio` field that `$eq` can match precisely.
-
-**Failure Case 3 — Chunk fragmentation causes winner names to be unretrievable (fixed)**
- 
-**Question that failed:** Who won the 2026 Cornell Tech Startup Awards and how much funding did they receive?
- 
-**What the system returned (before fix):** The system correctly stated that four teams each received $100,000, but could not name any of the winners (Aiseptor, Custos, Kindred, Lola) or runner-ups (CoagHealth, MedComm). Even with k=8, the answer described winning projects only by category — "blocks AI exam fraud," "makes financial AI transactions safer" — with no company names.
- 
-**Root cause (tied to a specific pipeline stage):** This is an ingestion/chunking-stage failure. The 2026 Startup Awards article produced 19 chunks at 375 characters each. Winner names and descriptions are spread across Chunks 4–10, but each chunk contains only a fragment of one winner's entry — for example, one chunk starts mid-sentence ("instead of trying to catch cheating after it happens...") and another contains only a founder name list with no company name attached. When embedded, these fragments carry weak semantic signal for the query "who won the awards." All name-containing chunks ranked below distance 0.5, outside the top-8 retrieved results. The year filter correctly restricted results to 2026 documents, but could not compensate for the fragmentation within those documents.
- 
-**Fix applied:** Added per-document chunk size logic in `chunk_document()`. Documents whose source name contains `"startup_awards"` now use `chunk_size=600` instead of 375. At 600 characters, each winner's name, description, and founders fit within a single chunk, giving the embedding enough semantic context to match "who won" queries. All other documents retain the 375-character default. After re-ingesting with the fix, the awards chunks containing winner names rank in the top-5 for this query.
 ---
-
+ 
+**Failure Case 3 — LLM ignores relevant chunk content (Q2 and Q3)**
+ 
+**Question that failed (Q2):** What BigCo companies are partnering with Cornell Tech in 2026?
+ 
+**What the system returned:** Retrieved Result 3 was `Slack Bigco Studio (2026)` at distance 0.41, and its text contained the complete list: "This year, BigCo Studio is partnering with seven organizations: Catholic Health, CSL Behring, Google, IHG Hotels, JPMorgan Chase, Samsung, TikTok." Despite this chunk being in the context, the LLM responded that it could not find specific company names and directed the user to the Cornell Tech website.
+ 
+**Root cause (tied to a specific pipeline stage):** This is a generation-stage failure, not a retrieval failure. The relevant chunk was successfully retrieved (dist: 0.41, well below the 0.6 threshold). The failure occurred because the LLM weighted higher-ranked chunks (Results 1 and 2, with lower distances) more heavily in its response, and those chunks described BigCo Studio's structure rather than listing partner names. When the answer is buried in a lower-ranked chunk, the model tends to synthesize from the most semantically prominent content rather than scanning all five chunks equally.
+ 
+The same pattern explains Q3: winner names appeared in Chunks 4–5 (dist: 0.42–0.43), but the LLM summarized from the higher-ranked Chunks 1–2 (dist: 0.30–0.31), which described the awards event and funding amounts without naming companies.
+ 
+**What you would change to fix it:** Two options. First, instruct the model in the system prompt to explicitly scan all provided chunks before answering, not just rely on the most prominent ones: "Read all context documents carefully before answering. Do not skip lower-ranked sources." Second, increase n_results from 5 to 8 for queries that involve lists or enumerations, giving the model more surface area to find specific names. A reranking step that specifically promotes chunks containing named entities would also help.
+ 
+---
+ 
 ## Spec Reflection
-
-<!-- Reflect on how planning.md shaped your implementation.
-     Answer both questions with at least 2–3 sentences each. -->
-
+ 
 **One way the spec helped you during implementation:**
-
+ 
+The planning.md Anticipated Challenges section proved directly useful during Milestone 4. Writing the challenge about sparse PiTech coverage before implementation forced a concrete decision: the system prompt must explicitly instruct the LLM to acknowledge when it lacks direct information about a specific track, rather than silently substituting content from another track. When PiTech retrieval returned Startup Studio schedule chunks during testing, the LLM correctly said "The documents I have don't contain direct information about PiTech Impact Studio on this topic" and offered the Startup Studio schedule only with an explicit caveat — exactly the behavior the spec had anticipated and designed for.
+ 
 **One way your implementation diverged from the spec, and why:**
-
+ 
+The spec described a uniform chunk size of 375 characters for all documents. During Milestone 5 evaluation, the system consistently failed to name the 2026 Startup Award winners despite retrieving the correct document — a failure traced to chunk fragmentation in the awards articles. Each winner's description spans 400–500 characters, larger than a single 375-char chunk, causing names to appear in fragments with weak semantic signal. The fix introduced per-document chunk size logic: awards documents use 600 characters while all others retain 375. This divergence from the spec was driven by an empirical failure discovered during evaluation, not a design change made in advance — which is exactly why evaluation matters.
+ 
 ---
-
+ 
 ## AI Usage
-
-<!-- Describe at least 2 specific instances where you used an AI tool during this project.
-     For each: what did you give the AI as input, what did it produce, and what did you
-     change, override, or direct differently?
-
-     "I used Claude to help me code" is not sufficient.
-     "I gave Claude my Chunking Strategy section from planning.md and asked it to implement
-     chunk_text(). It returned a function using a fixed character split. I overrode the
-     chunk size from 500 to 200 because my documents are short reviews, not long guides." -->
-
-**Instance 1**
-
-- *What I gave the AI:*
-  the output from terminal, decribe the problem(Year disambiguation failure, ), ask ai how to fix it.
-- *What it produced:*
-- *What I changed or overrode:*
-
-**Instance 2**
-
-- *What I gave the AI:*
-- *What it produced:*
-- *What I changed or overrode:*
+ 
+**Instance 1 — Retrieval failure diagnosis and metadata filtering fix**
+ 
+*What I gave the AI:* The full terminal output from `tests/test_retriever.py` showing two failure patterns: (1) the 2025 Startup Awards document outranking the 2026 document on the query "Who won the 2026 Cornell Tech Startup Awards?", with distances 0.316 and 0.324 for the wrong-year chunks versus 0.361 for the correct one; and (2) Startup Studio and unrelated Medium content appearing in results for "How does team formation work in Product Studio?" I described both problems and asked Claude to explain the root cause and propose a fix.
+ 
+*What it produced:* Claude identified that the year disambiguation failure was caused by the embedding model treating structurally identical articles as semantically equivalent, unable to weight a year token more heavily than surrounding prose. It proposed adding automatic metadata filtering in `retrieve()`: detecting a 4-digit year via regex and passing `where={"year": {"$eq": "2026"}}` to ChromaDB. For cross-track contamination, it proposed a `$contains` filter on `related_studio`. It produced the full updated `retriever.py` with a `_build_where_filter()` helper and a fallback to full-corpus search when the filter returns 0 results.
+ 
+*What I changed or overrode:* The year filtering fix worked exactly as proposed. However, I noticed the `$contains` track filter was silently failing for all track-specific queries. Investigating the output, I found that ChromaDB's `$contains` operator does not support string metadata fields — it only works on array types. The Reddit Studio Teams document stores `related_studio` as a slash-separated string, which `$contains` cannot match. I documented this as Failure Case 2 in the README rather than attempting a more complex workaround, since it represents a real infrastructure limitation worth explaining honestly.
+ 
+---
+ 
+**Instance 2 — Chunk fragmentation diagnosis and per-document chunk size fix**
+ 
+*What I gave the AI:* The terminal output from `tests/test_generator.py` showing that the system returned the correct $100,000 funding amount for the 2026 Startup Awards but could not name any of the winners. I described that the issue persisted even with k=8, and shared the output of `tests/debug_awards.py` showing the 2026 awards document produced 19 chunks at 375 characters, with winner names distributed across Chunks 4–10 — none of which ranked in the top-8 retrieved results. I asked Claude to explain why and propose a targeted fix that would not affect other documents.
+ 
+*What it produced:* Claude identified that 375-character chunking fragmented each winner's entry (name + description + founders, ~400–500 chars) across 2–3 chunks, each too short to carry enough semantic signal. It proposed a conditional inside `chunk_document()`: if the source name contains `"startup_awards"`, use `chunk_size=600`; otherwise use 375. It produced the updated function with the conditional and a docstring explaining the per-document rationale.
+ 
+*What I changed or overrode:* The fix was applied as proposed. I deleted `chroma_db/` and re-ingested all documents to rebuild the vector store with the new chunk sizes. I verified using `tests/debug_awards.py` that the awards document now produced 11 chunks (down from 19) with winner names in Chunks 2–5 at 599–600 characters each. Running `tests/debug_awards_k8.py` confirmed that winner-name chunks now ranked within the top-5 for this query.
+ 

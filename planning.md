@@ -176,7 +176,7 @@ I will use claude to generate `ingest.py` according to `planning.md`, with 500-c
 
 **Milestone 4 — Embedding and retrieval:**
 
-I will give Claude the Retrieval Approach section of this planning.md, and ask it to genrate `retriever.py`. I will specify that the return format must include text, source, and distance fields. I will verify by running 3 of my evaluation plan queries manually and checking that returned chunks visibly relate to each question.
+I will give Claude the Retrieval Approach section of this planning.md, and ask it to genrate `retriever.py`. I will specify that the return format must include text, source, and distance fields. I will verify by running 6 of my evaluation plan queries manually and checking that returned chunks visibly relate to each question. The test will be gerated by claude.
 
 **Milestone 5 — Generation and interface:**
 
