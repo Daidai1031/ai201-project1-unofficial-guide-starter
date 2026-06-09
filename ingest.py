@@ -62,13 +62,15 @@ def chunk_document(text, source, year="Unknown", related_studio="Unknown"):
     Split a document into overlapping character-based chunks.
 
     Strategy:
-      - chunk_size = 500 characters: Studio documents are a mix of
-        structured prose and bullet points. 500 chars fits roughly
-        2-4 sentences or a short bullet list — enough to carry a
-        complete idea (e.g., "how team matching works in BigCo Studio")
-        without merging unrelated topics.
-      - overlap = 75 characters: ensures that a rule or fact that falls
-        on a chunk boundary appears in full in at least one chunk.
+      - Default chunk_size = 375 characters: fits 1–3 sentences or a short
+        bullet list, carrying one complete idea without merging unrelated topics.
+      - Awards documents use chunk_size = 600 characters: the Startup Awards
+        articles describe each winner in a long bullet (~300-400 chars per
+        company). At 375 chars, a single winner's name and description gets
+        split across 2-3 chunks, each too fragmentary for retrieval to match.
+        600 chars keeps one complete winner entry per chunk.
+      - overlap = 75 characters for both: roughly one short sentence, enough
+        to recover a boundary-spanning fact without excessive duplication.
       - min_length = 60 characters: filters whitespace artifacts and
         section headers with no body text.
 
@@ -80,7 +82,13 @@ def chunk_document(text, source, year="Unknown", related_studio="Unknown"):
 
     Returns a list of dicts with keys: text, source, year, related_studio, chunk_id.
     """
-    chunk_size = 375
+    # Awards articles have long per-winner bullet descriptions that get
+    # fragmented at 375 chars — use a larger window for these documents.
+    if "startup_awards" in source.lower().replace(" ", "_"):
+        chunk_size = 600
+    else:
+        chunk_size = 375
+
     overlap = 75
     min_length = 60
 
