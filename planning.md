@@ -20,8 +20,8 @@ This project consolidates those sources into a single searchable system. The kno
 ## Documents
 
 
-| # | Source | Type | URL | File path |
-|---|--------|------|-----|-----------|
+| # | Source    | Type      | URL | File path |
+|---|-----------|-----------|-----|-----------|
 | 1 | Product Studio | Official Website | https://tech.cornell.edu/studio/curriculum/product-studio/ | documents/official_product_studio.md |
 | 2 | Startup Studio | Official Website | https://tech.cornell.edu/studio/curriculum/startup-studio/ | documents/official_startup_studio.md |
 | 3 | BigCo Studio | Official Website | https://tech.cornell.edu/studio/curriculum/bigco-studio/ | documents/official_bigco_studio.md |
@@ -98,11 +98,12 @@ Retrieving 5 chunks gives the LLM enough cross-source context without flooding i
 
 | # | Question | Expected answer |
 |---|----------|-----------------|
-| 1 | How does team formation work in Product Studio? | Teams are formed using the Dreamteam algorithm based on students' ranked challenge preferences; students rank their top 10 challenges and are matched to one of those, optimized for multidisciplinary teams. |
-| 2 | What are the team size requirements for Startup Studio? | 4 students from at least 2 degree programs, or 5 students from at least 3 degree programs. Exceptions for 3-person teams require Josh's approval. |
-| 3 | Who won the 2026 Cornell Tech Startup Awards and how much did they receive? | Four teams won $100,000 each: Aiseptor, Custos, Kindred, and Lola. Two runner-ups (CoagHealth and MedComm) received office space and mentorship through Runway. |
-| 4 | What BigCo companies are partnering with Cornell Tech in 2026? | Catholic Health, CSL Behring, Google, IHG Hotels, JPMorgan Chase, Samsung, and TikTok. |
-| 5 | What do students say are the weaknesses of the Studio program? | A 2020 Medium post cited lack of faculty passion, nepotism in hiring, repetitive guest speakers, and subjective/unclear grading standards as major criticisms. |
+| 1 | What are the team size requirements for Startup Studio? | 4 students from at least 2 degree programs, or 5 students from at least 3 degree programs. A 3-person exception requires explicit approval from Josh Hartmann. |
+| 2 | What BigCo companies are partnering with Cornell Tech in 2026? | Seven companies: Catholic Health, CSL Behring, Google, IHG Hotels, JPMorgan Chase, Samsung, and TikTok. |
+| 3 | Who won the 2026 Cornell Tech Startup Awards and how much funding did they receive? | Four teams each received $100,000: Aiseptor, Custos, Kindred, and Lola. Two runner-ups (CoagHealth and MedComm) received office space and mentorship through Runway but no cash. |
+| 4 | I want to start my own company after graduation. Which Studio track should I choose and why? | Startup Studio is the primary track for aspiring founders, with the option to apply for a $100,000 Startup Award. PiTech is an alternative for public-interest startups. BigCo Studio is not designed for founding a company. |
+| 5 | What do students say are the weaknesses of the Studio program? | A 2020 Medium post cited six criticisms: faculty lacking passion, insufficient teaching experience, nepotism in hiring, repetitive guest speakers, unclear grading standards, and lack of accountability. |
+| 6 | What is the weekly class schedule and structure of PiTech Impact Studio? | The documents do not contain a detailed weekly schedule. The system should acknowledge this gap rather than fabricating a schedule. |
 
 ---
 
@@ -131,8 +132,9 @@ Retrieving 5 chunks gives the LLM enough cross-source context without flooding i
         │
         ▼
 [1] INGESTION — ingest.py
-    load_documents(): reads .md files, light cleaning (collapse whitespace)
+    load_documents(): reads .md files, light cleaning (image syntax, collapse whitespace)
     chunk_document(): character-based sliding window, 500 chars, 75 overlap
+
         │
         ▼
 [2] EMBEDDING + VECTOR STORE — retriever.py
